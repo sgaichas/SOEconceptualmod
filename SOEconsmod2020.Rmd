@@ -1,0 +1,614 @@
+---
+title: "State of the Ecosystem Conceptual Model and Submodels"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+PKG <- c(#"foreign","foodweb","sna",
+         "DiagrammeR","circlize","RColorBrewer","QPress",
+         "chorddiag", "kableExtra", "googledrive", "readxl",
+         "DT")
+for (p in PKG) {
+  if(!require(p,character.only = TRUE)) {
+    install.packages(p)
+    require(p,character.only = TRUE)}
+}
+#install QPress
+#install.packages(c("tcltk2", "XML", "devtools"))
+#devtools::install_github("SWotherspoon/QPress", build_vignettes = TRUE)
+#install chorddiag
+#devtools::install_github("mattflor/chorddiag")
+#install googlesheets4
+#devtools::install_github("tidyverse/googlesheets4")
+```
+
+## Background
+
+At the 2020 State of the Ecosystem Synthesis Workshop (January 22-23) the working group sketched out a conceptual model of the ecological and fishery relationships surrounding fish condition.  Fish condition (weight at a given length) is an important driver of population productivity as well as market prices, which is affected by changing habitat (temperature) and ecosystem productivity.  A preliminary statistical analysis showed significant relationships between several indicators in the State of the Ecosystem report (SOE) and patterns in fish condition. We will investigate using fish condition combined with other indicators for their potential to inform operational Mid-Atlantic fishery management decisions over the coming year. 
+
+This page provides draft visualizations of the conceptual model for the State of the Ecosystem by a working group:
+
+```{r grouptab}
+# table with group membership
+name <- c("Geret DePiper", "Sarah Gaichas", "Brandon Muffley")
+affiliation <-c("NEFSC", "NEFSC", "MAFMC")
+  
+wg <- data.frame(Name=name, Affiliation=affiliation)
+knitr::kable(wg, caption = "SOE synthesis workshop participants 2020") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+
+```{r sfmod setup, message=FALSE}
+#assumes this is a project and .dia file is in local directory
+edges <- model.dia("SOEconditionfactorlinks.dia")
+## Examine unweighted adjacency matrix
+FishCond <- adjacency.matrix(edges, labels=TRUE)
+FishCond_Drivers <- c("Economic Drivers","Temperature","Shifts in Preferences","Community Vulnerability","Freshwater Influx","Nutrient Influx","Ocean Acidification",
+                   "Ocean Features","Oceanographic Transport","Offshore Wind","Dissolved Oxygen","Water Diversion")
+FishCond_Habitat <- c("Estuarine Habitat","Food Web Changes","Offshore Habitat","Habitat Alteration","Habitat Disturbance","Loose Inert Substrate","Salinity","Water Clarity",
+                   "Aquatic Vegetation")
+FishCond_Biota <- c("Fluke Distributional Shift","Fluke Recruitment","Fluke SSB","Adults & Spawners","Age & Size Structure",
+                 "Growth","Maturation","Natural Mortality","Sex Ratio")
+FishCond_Species <- c("Other Species Distributional Shifts","Protected Species")
+FishCond_Management <- c("Allocation","Communication","Enforcement","Management Control","Other Regulations",
+                      "Permit Access","Regulatory Complexity","Risk Buffering")
+FishCond_Benefits <- c("Commercial Profits","Consumer Surplus","Recreational Value","Seafood Production","Rec. Business Profits")
+FishCond_Science <- c("Assessment Process","Data Quality", "Rec. Fishing Predictability","Stock Assessment")
+FishCond_Fishery <- c("Compliance","Total Discards","Fishery Distributional Shift","Shoreside Support",
+                   "Fleet Diversity","Total Landings","Perceived Inequity","Technical Interactions")
+FishCond_C <- brewer.pal(8,"Dark2")
+FishCond_Colors <- data.frame(row.names(FishCond))
+colnames(FishCond_Colors) <- "Focus"
+FishCond_Colors$Color <- FishCond_C[1]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Habitat] <- FishCond_C[2]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Biota] <- FishCond_C[3]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Species] <- FishCond_C[4]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Management] <- FishCond_C[5]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Benefits] <- FishCond_C[6]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Science] <- FishCond_C[7]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Fishery] <- FishCond_C[8]
+FishCond_Groups <- FishCond_Colors
+FishCond_Groups$Group <- "Drivers"
+FishCond_Groups$Rank <- 1
+FishCond_Groups$Group[FishCond_Groups$Focus%in%FishCond_Habitat] <- "Habitat"
+FishCond_Groups$Rank[FishCond_Groups$Focus%in%FishCond_Habitat] <- 2
+FishCond_Groups$Group[FishCond_Groups$Focus%in%FishCond_Biota] <- "FishCond Dynamics"
+FishCond_Groups$Rank[FishCond_Groups$Focus%in%FishCond_Biota] <- 3
+FishCond_Groups$Group[FishCond_Groups$Focus%in%FishCond_Species] <- "Other Biota"
+FishCond_Groups$Rank[FishCond_Groups$Focus%in%FishCond_Species] <- 4
+FishCond_Groups$Group[FishCond_Groups$Focus%in%FishCond_Management] <- "Management"
+FishCond_Groups$Rank[FishCond_Groups$Focus%in%FishCond_Management] <- 5
+FishCond_Groups$Group[FishCond_Groups$Focus%in%FishCond_Benefits] <- "Benefits"
+FishCond_Groups$Rank[FishCond_Groups$Focus%in%FishCond_Benefits] <- 6
+FishCond_Groups$Group[FishCond_Groups$Focus%in%FishCond_Science] <- "Science"
+FishCond_Groups$Rank[FishCond_Groups$Focus%in%FishCond_Science] <- 7
+FishCond_Groups$Group[FishCond_Groups$Focus%in%FishCond_Fishery] <- "Fishing Fleets"
+FishCond_Groups$Rank[FishCond_Groups$Focus%in%FishCond_Fishery] <- 8
+FishCond_edges <- cbind(FishCond,FishCond_Colors)
+FishCond_Colors <- FishCond_Colors[order(FishCond_Colors$Color,FishCond_Colors$Focus),]
+FishCond_Colors <- matrix(FishCond_Colors$Color,dimnames=list(FishCond_Colors$Focus,"Color"))
+FishCond_edges <-  FishCond_edges[order( FishCond_edges$Color,FishCond_edges$Focus),]
+FishCond_edges$Color <- NULL
+FishCond_edges$Focus <- NULL
+FishCond_edges <- data.matrix(FishCond_edges)
+Border_mat <- matrix(1,nrow=nrow(FishCond_edges),ncol=ncol(FishCond_edges))
+rownames(Border_mat) <- rownames(FishCond_edges)
+colnames(Border_mat) <- colnames(FishCond_edges)
+#Border_mat[Grand_Banks_edges < 0] = 2
+Border_Col <- matrix("white",nrow=nrow(FishCond_edges),ncol=ncol(FishCond_edges))
+rownames(Border_Col) <- rownames(FishCond_edges)
+colnames(Border_Col) <- colnames(FishCond_edges)
+#Border_Col[Grand_Banks_edges < 0] = "black"
+Border_w <- matrix(.0001,nrow=nrow(FishCond_edges),ncol=ncol(FishCond_edges))
+rownames(Border_w) <- rownames(FishCond_edges)
+colnames(Border_w) <- colnames(FishCond_edges)
+```
+<!--
+## Static Plot
+```{r sfstatic}
+#full conceptual model in circlize package
+chordDiagram(FishCond_edges, directional=0,
+                   grid.col = FishCond_Colors,
+                   row.col = FishCond_Colors,
+                   link.lty = Border_mat,
+                   link.lwd = Border_w,
+                   link.border = Border_Col,
+                   annotationTrack="grid",preAllocateTracks= list(track.height=0.5))
+circos.trackPlotRegion(track.index=1, panel.fun= function (x,y){
+  xlim = get.cell.meta.data("xlim")
+  ylim = get.cell.meta.data("ylim")
+  sector.name = get.cell.meta.data("sector.index")
+  circos.text(mean(xlim),ylim[1],sector.name,facing="clockwise", niceFacing=TRUE, adj =c(0,0.5), cex=.6)
+}, bg.border=NA) 
+legend(x=-1.1,y = 1.09,legend = c("Driver","Habitat","FishCond","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=1, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+title(main="FishCond System", line=-35)
+```
+-->
+## Visualizing a Conceptual Model
+
+A conceptual model is simply a map of the most important relationships between things. This conceptual model maps the relationships of things ("elements") that the Council and working group have identified as important to summer flounder fisheries and management. The relationships are not quantified or ranked in this simple map; if they are included at all they were considered important by the working group. Later analyses, based on the data sets identified below, can quantify linkages. The primary objective of this model is scoping: first, to get a big picture idea of the linkages to both refine and focus a set of management questions for Council consideration, and second to determine which relationships are necessary to include in later quantitative analysis addressing specific management issues prioritized by the Council. 
+
+In this visualization, model elements identified as important by the Council (through risk assessment) and by the working group (through a range of experience and expertise) are at the perimeter of the circle. Elements are defined in detail in the [last section](#defs) of this page. Relationships between elements are represented as links across the center of the circle to other elements on the perimeter. Links from a model element that affect another element start wide at the base and are color coded to match the category of the element they affect.
+
+Hover over a perimeter section (an element) to see all relationships for that element, including links from other elements. Hover over a link to see what it connects. Links by default show text for the two elements and the direction of the relationship (1 for relationship, 0 for no relationship--most links are one direction).
+
+For example, hovering over the element "Total Landings" in the full model shows that the working group identified the elements affected by landings as Seafood Production, Recreational Value, and Commercial Profits (three links leading out from landings), and the elements affecting landings as Fluke SSB, Fluke Distributional Shift, Risk Buffering, Management Control, Total Discards, and Shoreside Support (6 links leading into Total Landings).
+
+
+```{r sfintsetup}
+#need to redo the order of the columns and rows for this function
+#also transpose it and no negative values
+FishCond_Colors <- data.frame(row.names(FishCond))
+colnames(FishCond_Colors) <- "Focus"
+FishCond_Colors$Color <- FishCond_C[1]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Habitat] <- FishCond_C[2]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Biota] <- FishCond_C[3]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Species] <- FishCond_C[4]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Management] <- FishCond_C[5]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Benefits] <- FishCond_C[6]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Science] <- FishCond_C[7]
+FishCond_Colors$Color[FishCond_Colors$Focus%in%FishCond_Fishery] <- FishCond_C[8]
+FishCond_edges <- cbind(FishCond,FishCond_Colors)
+FishCond_Colors <- FishCond_Colors[order(FishCond_Colors$Color,FishCond_Colors$Focus),]
+FishCond_Colors <- matrix(FishCond_Colors$Color,dimnames=list(FishCond_Colors$Focus,"Color"))
+FishCond_edges <-  FishCond_edges[order( FishCond_edges$Color,FishCond_edges$Focus),]
+FishCond_edges$Color <- NULL
+FishCond_edges$Focus <- NULL
+rn <- row.names(FishCond_edges)
+FishCond_edges2 <- FishCond_edges[rn]
+FishCond_edges <- data.matrix(FishCond_edges)
+FishCond_edges2 <- data.matrix(FishCond_edges2)
+FishCond_edges2 <- t(FishCond_edges2)
+FishCond_edges2 <- abs(FishCond_edges2)
+ #########Submodels functions
+Submodel_edges <- function (y) {
+  New_edges <- FishCond_edges2[,colnames(FishCond_edges2)%in%y]
+  New_edges <- New_edges[rownames(New_edges)%in%y,]
+    return(New_edges)
+}
+Submodel_color <- function (y) {
+  New_colors <-  as.vector(FishCond_Colors[rownames(FishCond_Colors)%in%y,])
+  return(New_colors)
+}
+New_Figure <- function (x) {
+New_edges <- Submodel_edges(x)
+New_colors <- Submodel_color(x)
+New_groups <- FishCond_Groups[which(FishCond_Groups$Focus%in%x),]
+  New_groups <- unique(New_groups[,2:4])
+  New_groups <- New_groups[order(New_groups$Rank),]
+  New_groups <- New_groups[,1:2]
+  Figure_name <- deparse(substitute(x))
+  Figure_title <- gsub("_"," ",Figure_name)
+chorddiag(New_edges, 
+          type = "directional",
+          width = 900,
+          height = 900,
+          margin = 120,
+          groupColors = New_colors,
+          groupedgeColor = New_colors,
+          chordedgeColor = New_colors,
+          groupPadding = 1, groupThickness = 0.1,
+          showTicks = F, groupnameFontsize = 12, groupnamePadding = 10
+          )
+}
+```
+
+### Full model and submodels for risk elements {.tabset .tabset-fade}
+
+The plots below visualize conceptual model links for subsets of model components, including all links to and from individual risk elements. Click on tab corresponding to the portion of the conceptual model you want to see.
+
+#### Full Model
+```{r sfint-full}
+New_Figure(colnames(FishCond_edges2))
+```
+
+```{r define-groupings}
+# #1. Risk Factors
+Risk_Factors <- c('Allocation','Commercial Profits','Total Discards','Fishery Resilience','Fleet Diversity','Management Control',
+                   'Recreational Value','Regulatory Complexity','Seafood Production','Technical Interactions',"Fluke Distributional Shift",
+                   "Estuarine Habitat", "Fluke SSB","Stock Assessment","Offshore Habitat", "Offshore Wind")
+#New_Figure(Risk_Factors)
+#2. Distributional Change
+Distributional_Change <- c("Fluke Distributional Shift","Temperature","Fluke Recruitment","Total Discards",
+                           'Total Landings',"Food Web Changes","Fluke SSB","Estuarine Habitat","Offshore Habitat")
+#New_Figure(Distributional_Change)
+#3. Estuarine Habitat
+Estuarine_Habitat <- c("Estuarine Habitat","Temperature","Dissolved Oxygen","Habitat Alteration","Food Web Changes","Salinity","Freshwater Influx","Loose Inert Substrate",
+                       "Water Clarity","Aquatic Vegetation","Nutrient Influx","Water Diversion", "Offshore Wind")
+#New_Figure(Estuarine_Habitat)
+#4. Stock Biomass
+Stock_Biomass <- c("Fluke SSB","Estuarine Habitat","Offshore Habitat","Food Web Changes","Growth","Maturation","Natural Mortality",
+                   'Total Landings',"Total Discards","Sex Ratio","Age & Size Structure","Fluke Recruitment","Adults & Spawners","Fluke Distributional Shift", "Offshore Wind")
+#New_Figure(Stock_Biomass)
+#5. Stock Assessment
+Stock_Assessment <- c("Stock Assessment","Assessment Process","Data Quality","Risk Buffering")
+#New_Figure(Stock_Assessment)
+#6. Offshore Habitat
+Offshore_Habitat <- c("Offshore Habitat","Temperature","Dissolved Oxygen","Salinity","Ocean Acidification","Ocean Features","Food Web Changes",
+                      "Habitat Alteration","Habitat Disturbance", "Offshore Wind")
+#New_Figure(Offshore_Habitat)
+#7. Allocation
+Allocation <- c("Allocation","Fluke Distributional Shift","Fishery Distributional Shift","Data Quality", "Offshore Wind")
+#New_Figure(Allocation)
+#8. Commercial Profits
+Commercial_Profits <- c("Commercial Profits","Compliance",'Shoreside Support',"Fluke Distributional Shift","Total Landings","Allocation","Fluke SSB",
+                "Management Control","Regulatory Complexity","Economic Drivers","Technical Interactions", "Offshore Wind")
+#New_Figure(Commercial_Profits)
+#9. Discards
+Discards <- c("Total Discards","Fluke Distributional Shift","Allocation","Management Control","Fluke SSB","Fluke Recruitment","Technical Interactions")
+#New_Figure(Discards)
+#10. Fishery Resilience
+Fishery_Resilience <- c("Shoreside Support","Allocation",'Total Landings',"Permit Access","Fluke Distributional Shift")
+#New_Figure(Fishery_Resilience)
+#11. Fleet Diversity
+Fleet_Diversity <- c("Fleet Diversity","Shoreside Support","Fluke Distributional Shift","Allocation","Permit Access")
+#New_Figure(Fleet_Diversity)
+#12. Management Control
+Management_Control <- c("Management Control","Stock Assessment","Enforcement","Compliance","Risk Buffering","Data Quality",
+                        "Rec. Fishing Predictability","Technical Interactions", "Offshore Wind")
+#New_Figure(Management_Control)
+#13. Recreational Value
+Recreational_Value <- c("Management Control","Recreational Value","Fluke Distributional Shift","Allocation","Consumer Surplus",
+                        "Shifts in Preferences","Economic Drivers","Regulatory Complexity","Total Landings","Fluke SSB","Rec. Business Profits","Other Species Distributional Shifts", "Offshore Wind")
+#New_Figure(Recreational_Value)
+#14. Regulatory Complexity
+Regulatory_Complexity <- c("Regulatory Complexity","Perceived Inequity","Allocation","Communication","Data Quality","Management Control")
+#New_Figure(Regulatory_Complexity)
+#15. Seafood Production
+Seafood_Production <- c("Seafood Production","Total Discards","Consumer Surplus","Total Landings","Economic Drivers","Shoreside Support")
+#New_Figure(Seafood_Production)
+#16. Technical Interactions
+Technical_Interactions <- c("Technical Interactions","Protected Species","Fluke Distributional Shift",
+                            "Other Species Distributional Shifts","Communication","Regulatory Complexity")
+#New_Figure(Technical_Interactions)
+#17. Offhshore Wind
+Offshore_Wind <- c("Fluke Distributional Shift")
+```
+
+```{r legend-full, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Risk Elements Only
+```{r sfint-risk}
+New_Figure(Risk_Factors)
+```
+
+```{r legend-risk, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Fluke Distributional Shift
+```{r sfint-dist}
+New_Figure(Distributional_Change)
+```
+
+```{r legend-dist, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Estuarine Habitat
+```{r sfint-est}
+New_Figure(Estuarine_Habitat)
+```
+
+```{r legend-est, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Stock Biomass
+```{r sfint-sb}
+New_Figure(Stock_Biomass)
+```
+
+```{r legend-sb, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Stock Assessment
+```{r sfint-sa}
+New_Figure(Stock_Assessment)
+```
+
+```{r legend-sa, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Offshore Habitat
+```{r sfint-off}
+New_Figure(Offshore_Habitat)
+```
+
+```{r legend-off, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Allocation
+```{r sfint-al}
+New_Figure(Allocation)
+```
+
+```{r legend-al, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Commercial Profits
+```{r sfint-cp}
+New_Figure(Commercial_Profits)
+```
+
+```{r legend-cp, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Discards
+```{r sfint-disc}
+New_Figure(Discards)
+```
+
+```{r legend-disc, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Shoreside Support
+```{r sfint-fr}
+New_Figure(Fishery_Resilience)
+```
+
+```{r legend-fr, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Fleet Diversity
+```{r sfint-fd}
+New_Figure(Fleet_Diversity)
+```
+
+```{r legend-fd, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Management Control
+```{r sfint-mc}
+New_Figure(Management_Control)
+```
+
+```{r legend-mc, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Recreational Value
+```{r sfint-rv}
+New_Figure(Recreational_Value)
+```
+
+```{r legend-rv, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Regulatory Complexity
+```{r sfint-rc}
+New_Figure(Regulatory_Complexity)
+```
+
+```{r legend-rc, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Seafood Production
+```{r sfint-sp}
+New_Figure(Seafood_Production)
+```
+
+```{r legend-sp, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+#### Technical Interactions
+```{r sfint-ti}
+New_Figure(Technical_Interactions)
+```
+
+```{r legend-ti, fig.height=2.5}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("topleft", #x=-1.1,y = 1.09,
+       legend = c("Driver","Habitat","Fluke","Other Biota","Management","Benefits","Science","Fishing Fleets"),
+             lty= c(1,1,1,1,1,1,1,1), lwd=c(5,5,5,5,5,5,5,5),
+             col =c(FishCond_C[1],FishCond_C[2],FishCond_C[3],FishCond_C[4],FishCond_C[5],FishCond_C[6],FishCond_C[7],FishCond_C[8]), ncol=4, cex = .75, bg = NULL, box.col=NULL, bty = "n")
+```
+
+## Documentation Tables
+
+Each link in the conceptual model corresponds to an entry in the documentation tables below. Click on the category name to see the full documentation assembled by the working group.
+
+```{r googledr, message=FALSE, eval=FALSE}
+# take from google drive to automatically update any changes
+drive_download("Conceptual Model Elements_Detailed Info Table", path="documentation.xlsx", overwrite = TRUE)
+```
+
+### Physical Environment {.tabset .tabset-fade}
+
+#### Fluke Distributional Shift
+```{r distchange}
+knitr::kable(read_excel("documentation.xlsx", sheet="Physical Environment", range = 'A3:E13')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Estuarine Habitat
+```{r esthab}
+knitr::kable(read_excel("documentation.xlsx", sheet="Physical Environment", range = 'A17:E28')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Fluke SSB (Stock Biomass)
+```{r SSB}
+knitr::kable(read_excel("documentation.xlsx", sheet="Physical Environment", range = 'A32:E44')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Stock Assessment
+```{r stockassess}
+knitr::kable(read_excel("documentation.xlsx", sheet="Physical Environment", range = 'A48:E52')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Offshore Habitat
+```{r offhab}
+knitr::kable(read_excel("documentation.xlsx", sheet="Physical Environment", range = 'A56:E63')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+### Human Dimensions {.tabset .tabset-fade}
+
+#### Allocation
+```{r alloc}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A3:E9')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Commercial Profits
+```{r commprofit}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A13:E25')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Discards
+```{r discards}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A29:E35')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Shoreside Support
+```{r resilience}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A39:E44')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Fleet Diversity
+```{r fldiversity}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A48:E53')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Management Control
+```{r control}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A57:E65')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Recreational Value
+```{r recval}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A69:E80')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Regulatory Complexity
+```{r regcomplex}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A84:E91')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Seafood Production
+```{r seafood}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A95:E102')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Technical Interactions
+```{r techint}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A106:E110')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Offshore Wind
+```{r wind}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A113:E123')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+#### Other Links
+```{r other}
+knitr::kable(read_excel("documentation.xlsx", sheet="Human Dimension", range = 'A127:E129')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+## Definitions {#defs}
+
+Rows in the tables above include definitions. Here we list definitions for the risk elements (table headings above). The Council defined risk in terms of meeting its management objectives, which include achieving optimum yield (OY).
+```{r deftable}
+
+#knitr::kable(read.csv("definitions.csv")) %>%
+#  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+datatable(read.csv("definitions.csv"), rownames = FALSE, options = list(pageLength = 25))
+```
+
